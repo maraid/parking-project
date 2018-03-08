@@ -1,0 +1,254 @@
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Koala RC</title>
+	<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+	
+	<style>
+		* {
+  border: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+#main {
+  align-items: center;
+  display: flex;
+  height: 100vh;
+  justify-content: center;
+  margin: auto;
+  width: 100vw;
+}
+
+#wrapper {
+  border: 1px solid gray;
+  background-color: gray;
+  width: 300px;
+  height: 300px;
+  border-radius: 50px;
+  padding: 60;
+}
+
+.joystick {
+  background-color: black;
+  padding: 10px, 10px, 10px, 10px;
+  border-radius: 100%;
+  cursor: pointer;
+  height: 100%;
+  user-select: none;
+  width: 100%;
+}
+
+	</style>
+	
+</head>
+	
+	
+<body>
+
+<!--<table>
+  <tr>
+    <th></th>
+    <th><button type="button" id="up">/\</button></th>
+    <th></th>
+  </tr>
+  <tr>
+    <th><button type="button" id="left"><</button></th>
+    <th><button type="button" id="stop">!!!</button></th></th>
+    <th><button type="button" id="right">></button></th>
+  </tr>
+  <tr>
+    <th></th>
+    <th><button type="button" id="down">\/</button></th>
+    <th></th>
+  </tr>
+</table>
+-->
+
+<script>
+	$( "#up" ).click(function() {
+	  $.post( 
+                  "control",
+                  { direction: "U" }
+               );
+	});
+	$( "#down" ).click(function() {
+	  $.post( 
+                  "control",
+                  { direction: "D" }
+               );
+	});
+	$( "#right" ).click(function() {
+	  $.post( 
+                  "control",
+                  { direction: "R" }
+               );
+	});
+	$( "#left" ).click(function() {
+	  $.post( 
+                  "control",
+                  { direction: "L" }
+               );
+               
+	});
+	$( "#stop" ).click(function() {
+	  $.post( 
+                  "control",
+                  { direction: "S" }
+               );
+               
+	});
+</script>
+
+
+<div>
+	
+</div>
+
+<div>
+<table>
+  <tr>
+	<th></th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th></th>
+  </tr>
+  <tr>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th bgcolor="#FF0000"> &#160 </th>
+  </tr>
+    <tr>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th></th>
+    <th></th>
+    <th><img src="koala.jpg" alt="Koala robot" height="100" width="100"></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th bgcolor="#FF0000"> &#160 </th>
+  </tr>
+    <tr>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th bgcolor="#FF0000"> &#160 </th>
+  </tr>
+  <tr>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th></th>
+    <th bgcolor="#FF0000"> &#160 </th>
+  </tr>
+  <tr>
+    <th></th>
+    <th></th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th></th>
+    <th></th>
+    <th bgcolor="#FF0000"> &#160 </th>
+    <th></th>
+    <th></th>
+  </tr>
+  
+  </table>
+</div>
+
+<div id="main">
+	<div id="wrapper">
+	</div>
+</div>
+
+
+
+<script>
+	const joystick = createJoystick(document.getElementById('wrapper'));
+
+ //setInterval(() => console.log(joystick.getPosition()), 16);
+
+function createJoystick(parent) {
+  const maxDiff = 100;
+  const stick = document.createElement('div');
+  stick.classList.add('joystick');
+
+  stick.addEventListener('mousedown', handleMouseDown);
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+  stick.addEventListener('touchstart', handleMouseDown);
+  document.addEventListener('touchmove', handleMouseMove);
+  document.addEventListener('touchend', handleMouseUp);
+
+  let dragStart = null;
+  let currentPos = { x: 0, y: 0 };
+
+  function handleMouseDown(event) {
+    stick.style.transition = '0s';
+    if (event.changedTouches) {
+      dragStart = {
+        x: event.changedTouches[0].clientX,
+        y: event.changedTouches[0].clientY,
+      };
+      return;
+    }
+    dragStart = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+
+  }
+
+  function handleMouseMove(event) {
+    if (dragStart === null) return;
+    event.preventDefault();
+    if (event.changedTouches) {
+      event.clientX = event.changedTouches[0].clientX;
+      event.clientY = event.changedTouches[0].clientY;
+    }
+    const xDiff = event.clientX - dragStart.x;
+    const yDiff = event.clientY - dragStart.y;
+    const angle = Math.atan2(yDiff, xDiff);
+		const distance = Math.min(maxDiff, Math.hypot(xDiff, yDiff));
+		const xNew = distance * Math.cos(angle);
+		const yNew = distance * Math.sin(angle);
+    stick.style.transform = `translate3d(${xNew}px, ${yNew}px, 0px)`;
+    currentPos = { x: xNew, y: yNew };
+  }
+
+  function handleMouseUp(event) {
+    if (dragStart === null) return;
+    stick.style.transition = '.2s';
+    stick.style.transform = `translate3d(0px, 0px, 0px)`;
+    dragStart = null;
+    currentPos = { x: 0, y: 0 };
+  }
+
+  parent.appendChild(stick);
+  return {
+    getPosition: () => currentPos,
+  };
+}
+
+</script>
+
+</body>
+</html>
