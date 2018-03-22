@@ -13,7 +13,13 @@ ser = serial.Serial(
 
 koala = Koala.Koala(ser)
 
-koala.follow_arch(1)
+# koala.follow_arch(0.3)
+
+# try:
+#	while True:
+#		time.sleep(0.1)
+#except KeyboardInterrupt:
+#		koala.stop()
 
 """
 input=1

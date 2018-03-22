@@ -9,10 +9,12 @@ class Koala:
 		self.rspeed = 0
 		self.lspeed = 0
 		
-		self.width = 0.28  # m
+		self.width = 0.30  # m 0.28
 		
 		self.serial = serial
 		self.set_speed(0, 0)
+		
+		self.full_circle_ticks = 21198
 
 	def write(self, *arg):
 		def response():
@@ -21,8 +23,17 @@ class Koala:
 			while self.serial.inWaiting() > 0:
 				out += self.serial.read(1)
 			if out != '':
-				return out
-		self.serial.write(",".join([str(x) if n == 0 else str(int(x)) for n, x in enumerate(arg)]) + '\r')
+				print(out)
+				return out.split(',')
+				
+		message = []
+		for n, x in enumerate(arg):
+			if n == 0:
+				message.append(str(x))
+			else:
+				message.append(str(int(x)))
+		
+		self.serial.write(",".join(message) + '\r')
 		return response()
 	
 	@property
@@ -37,7 +48,18 @@ class Koala:
 	def stop(self):
 		return self.write('D', 0, 0)
 	
-	def rotate_in_place(self, angle):
+	def rotate(self, angle):
+		
+			
+		rate = angle / 360.0
+		self.write('G', 0, 0)
+		
+		pos = self.write('H')
+		finish = self.full_circle_ticks * rate * 0.92
+		print("Finish = " + str(finish))
+		while abs(int(self.write('H')[2])) < finish:
+			time.sleep(0.001)
+		self.write('D', 0, 0)
 		return
 		
 	def follow_arch(self, radius):  # radius in m
@@ -53,14 +75,25 @@ class Koala:
 		rate = inner_circumference / outer_circumference
 		
 		max_speed = 20
-		acc = 64
+		acc = 255
 		
 		inner_max_speed = max_speed * rate
 		inner_acc = acc * rate
 		# print(locals())
 		self.write('G', 0, 0)
-		self.write('J', max_speed, acc, inner_max_speed, inner_acc)
-		self.write('C', outer_pulses, inner_pulses)
+		self.write('D', max_speed, max_speed * rate)
+		#self.write('J', max_speed, acc, inner_max_speed, acc)
+		#self.write('C', outer_pulses, inner_pulses)
+		
+		while True:
+			pos = self.write('H')
+			pos1 = int(pos[1])
+			pos2 = int(pos[2])
+			
+			if (abs(pos1) or abs(pos2)) > outer_pulses:
+				break
+			time.sleep(0.001)
+		self.write('D', 0, 0)
 		
 		
 	@staticmethod
