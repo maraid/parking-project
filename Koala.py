@@ -9,13 +9,12 @@ class Koala:
 		self.rspeed = 0
 		self.lspeed = 0
 		
-		self.width = 0.30  # m 0.28
-		
 		self.serial = serial
+		self.odoinit()
 		self.set_speed(0, 0)
 		
 		self.full_circle_ticks = 21198
-
+		
 	def write(self, *arg):
 		def response():
 			out = ''
@@ -63,8 +62,8 @@ class Koala:
 		return
 		
 	def follow_arch(self, radius):  # radius in m
-		inner_radius = radius - self.width / 2
-		outer_radius = radius + self.width / 2
+		inner_radius = radius - self.wheelBase / 2
+		outer_radius = radius + self.wheelBase / 2
 		
 		inner_circumference = self._circle_circumference(inner_radius)
 		outer_circumference = self._circle_circumference(outer_radius)
@@ -112,7 +111,58 @@ class Koala:
 		if value < min:
 			v = min
 		return v
+		
+	def odoinit(self):
+		self.maxSpeed = 0.3; #m/s
+		self.maxAcceleration=0.07; #m/s^2
 
+		self.wheelRadiusLeft=4.19/100; #m
+		self.wheelRadiusRight=4.19/100; #m
+		self.wheelBase=30.6/100; #m
 
+		self.tickPerRevolution=5850.0;
 
+		self.tickSizeLeft=2*pi*wheelRadiusLeft/tickPerRevolution; # position change/tick
+		self.tickSizeRight=2*pi*wheelRadiusRight/tickPerRevolution;
 
+		self.speedFactor=0.01/((tickSizeLeft+tickSizeRight)/2); # change from m/s to tick/second
+		
+		poses = self.readcounter()
+		self.leftpos = int(self.poses[1])
+		self.rightpos = int(self.poses[2])
+		self.angle = pi/2
+		self.res_X = 0.0
+		self.res_Y = 0.0
+		
+	def odostep(self):
+		poses = readcounter()
+		
+		delta_pos_left = int(self.poses[1]) - self.leftpos # change in encoder value of left wheel
+		delta_pos_right = int(self.poses[2]) - self.rightpos # change in encoder value of right wheel
+
+		delta_left = delta_pos_left * self.tickSizeLeft
+		delta_right = delta_pos_right * self.tickSizeRight
+		delta_theta = (delta_right - delta_left) / self.wheelBase
+		theta2 = self.angle + delta_theta * 0.5
+		delta_x = (delta_left + delta_right) * 0.5 * cos(theta2)
+		delta_y = (delta_left + delta_right) * 0.5 * sin(theta2)
+
+		self.res_X = self.res_X + delta_x
+		self.res_Y = self.res_Y + delta_y
+
+		self.angle = self.angle + delta_theta
+
+		if (self.angle > pi): 
+			self.angle=self.angle-2*pi
+		end
+		if (self.angle <= -pi): 
+			self.angle=self.angle+2*pi
+		end
+
+		self.leftpos = int(self.poses[1])
+		self.rightpos = int(self.poses[2])
+				
+		
+	def readcounter(self):
+		poses = self.write('H')
+		return poses
