@@ -1,6 +1,7 @@
 import serial
 import time
 import Koala
+import threading
 
 ser = serial.Serial(
 		port='/dev/ttyUSB0',
@@ -11,15 +12,26 @@ ser = serial.Serial(
 		xonxoff = True
 )
 
+
 koala = Koala.Koala(ser)
+koala.set_speed(20, 20)
+while True:
+	koala.step()
+	print("res_X: " + str(koala.res_X) + "\nres_Y: " + str(koala.res_Y))
+	if koala.res_Y > 1:
+		koala.stop()
+		break
+
+
+
 
 # koala.follow_arch(0.3)
 
-# try:
-#	while True:
-#		time.sleep(0.1)
-#except KeyboardInterrupt:
-#		koala.stop()
+try:
+	main()
+except KeyboardInterrupt:
+	koala.stop()
+	stop_flag.set()
 
 """
 input=1
