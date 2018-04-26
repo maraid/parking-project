@@ -2,6 +2,7 @@ import serial
 import time
 import Koala
 import threading
+import matplot
 
 ser = serial.Serial(
 		port='/dev/ttyUSB0',
@@ -16,9 +17,9 @@ ser = serial.Serial(
 koala = Koala.Koala(ser)
 koala.set_speed(20, 20)
 while True:
-	koala.step()
-	print("res_X: " + str(koala.res_X) + "\nres_Y: " + str(koala.res_Y))
-	if koala.res_Y > 1:
+	koala.odo_step()
+	print("res_X: " + str(koala.x) + "\nres_Y: " + str(koala.y))
+	if koala.y > 1:
 		koala.stop()
 		break
 

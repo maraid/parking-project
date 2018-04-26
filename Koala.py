@@ -1,7 +1,7 @@
 import serial
 import time
-import curses
-from math import pi, cos, sin
+from math import pi, cos, sin, tan, atan
+import numpy as np
 
 
 class Koala:
@@ -16,7 +16,6 @@ class Koala:
         self.full_circle_ticks = 21198
 
         # ODOMETRY
-        self.write('G', 0, 0)
         self.max_speed = 0.3  # m/s
         self.max_acceleration = 0.07  # m/s^2
 
@@ -31,11 +30,27 @@ class Koala:
 
         self.speed_factor = 0.01 / ((self.tick_size_left + self.tick_size_right) / 2)  # change from m/s to tick/second
 
+        self.write('G', 0, 0)
         self.left_pos = int(self.poses[1])
         self.right_pos = int(self.poses[2])
-        self.angle = pi / 2
-        self.res_X = 0.0
-        self.res_Y = 0.0
+        self.angle = pi/2
+        self.x = 0
+        self.y = 0
+
+        self.circle_radius = 0.0
+        self.circle_arch_length = 0.0
+
+    def odo_reset(self, x, y, theta):
+        self.write('G', 0, 0)
+        self.left_pos = int(self.poses[1])
+        self.right_pos = int(self.poses[2])
+        self.angle = theta
+        self.x = x
+        self.y = y
+
+    def this_is_mqtt_visual_topic_callback(self):
+        # mqtt get info from visual team topic
+        raise NotImplementedError()
 
     def write(self, *arg):
         def response():
@@ -61,78 +76,88 @@ class Koala:
     def speed(self):
         return self.write('E')
 
-    def set_speed(self, l, r):
-        l = self._clip(l)
-        r = self._clip(r)
-        self.write('D', l, r)
+    def set_speed(self, left, right):
+        self.write('D', self.clip(left), self.clip(right))
 
     def stop(self):
         return self.write('D', 0, 0)
 
-    def rotate(self, angle):
+    def arch(self, p, t=3):
+        circle_circumference = self.circle_radius*2*pi
+        max_rad = 2 * pi * (self.circle_arch_length / circle_circumference)
 
-        rate = angle / 360.0
-        self.write('G', 0, 0)
+        x = self.circle_radius * cos(max_rad * p)
+        y = self.circle_radius * sin(max_rad * p)
+        return x, y
 
-        pos = self.write('H')
-        finish = self.full_circle_ticks * rate * 0.92
-        print("Finish = " + str(finish))
-        while abs(int(self.write('H')[2])) < finish:
-            time.sleep(0.001)
-        self.write('D', 0, 0)
-        return
+    def get_small_radius(self, x, y):
+        # 1 egyenes egyenlete
+        # tan(self.angle) x = 0
 
-    def follow_arch(self, radius):  # radius in m
-        inner_radius = radius - self.wheelBase / 2
-        outer_radius = radius + self.wheelBase / 2
+        # 2 egyenes egyenlete (1-re meroleges)
+        #            -1*x_a            r_a y_a
+        # tan( self.angle - (pi/2) ) x + 0 = y
 
-        inner_circumference = self._circle_circumference(inner_radius)
-        outer_circumference = self._circle_circumference(outer_radius)
+        # 3 egyenes (jelenlegi pont, kovetkezo celpont kozotti egyenes)
+        # ( end_y - start_y ) / ( end_x - start_x ) x = 0
 
-        inner_pulses = self._to_pulses(inner_circumference)
-        outer_pulses = self._to_pulses(outer_circumference)
+        # 3as felezopontja:  mid_x = start_x + ((end_x - start_x) / 2)
+        #                   mid_y = start_y + ((end_y - start_y) / 2)
 
-        rate = inner_circumference / outer_circumference
+        # 4 egyenes (3as felezo merolegese)
+        # meredekseg = tan(atan( 3as meredeksege) - (pi/2)) x
+        # eltolas = mid_y - meredekseg*mid_x
+        #  -1*x_b        r_b     y_b
+        # meredekseg x + eltolas = y
 
-        max_speed = 20
-        acc = 255
+        # Solve the system of equations 3 * x0 + x1 = 9 and x0 + 2 * x1 = 8:
+        # a = np.array([[3,1], [1,2]])
+        # b = np.array([9,8])
+        # x = np.linalg.solve(a, b)
 
-        inner_max_speed = max_speed * rate
-        inner_acc = acc * rate
-        # print(locals())
-        self.write('G', 0, 0)
-        self.write('D', max_speed, max_speed * rate)
-        # self.write('J', max_speed, acc, inner_max_speed, acc)
-        # self.write('C', outer_pulses, inner_pulses)
+        # kor kozeppontja(center): 2es 4es metszespontja (numpy megoldja)
+        # kor sugara: sqrt(center_x^2 + center_y^2)
 
-        while True:
-            pos = self.write('H')
-            pos1 = int(pos[1])
-            pos2 = int(pos[2])
+        # koordinatak eltolasa a jelenlegi pozicioba -> konnyebb szamolas
+        start_x = 0.0
+        start_y = 0.0
 
-            if (abs(pos1) or abs(pos2)) > outer_pulses:
-                break
-            time.sleep(0.001)
-        self.write('D', 0, 0)
+        end_x = float(x - self.x)
+        end_y = float(y - self.y)
+
+        x_a = float(-1 * tan(self.angle - (pi / 2.0)))
+        y_a = 1.0
+        r_a = 0.0
+
+        mid_x = end_x / 2.0
+        mid_y = end_y / 2.0
+
+        b_steepness = tan(atan((end_y - start_y) / (end_x - start_x)) - (pi / 2.0))
+        b_offset = mid_y - (b_steepness * mid_x)
+        x_b = -1.0 * b_steepness
+        y_b = 1.0
+        r_b = b_offset
+
+        a = np.array([[x_a, y_a],
+                      [x_b, y_b]])
+        b = np.array([r_a, r_b])
+        x = np.linalg.solve(a, b)
+
+        center_x = x[0]
+        center_y = x[1]
+        radius = (center_x ** 2 + center_y ** 2) ** 0.5
+
+        return radius
 
     @staticmethod
-    def _to_pulses(length):
-        return (length * 1000) / 0.045
-
-    @staticmethod
-    def _circle_circumference(radius):
-        return 2 * radius * pi
-
-    @staticmethod
-    def _clip(value, min=-100, max=100):
-        v = value
+    def clip(value, min=-100, max=100):
         if value > max:
-            v = max
-        if value < min:
-            v = min
-        return v
+            return max
+        elif value < min:
+            return min
+        return value
 
-    def step(self):
+    def odo_step(self):
         _, left_pos, right_pos = self.poses
         delta_pos_left = int(left_pos) - self.left_pos  # change in encoder value of left wheel
         delta_pos_right = int(right_pos) - self.right_pos  # change in encoder value of right wheel
@@ -144,8 +169,8 @@ class Koala:
         delta_x = (delta_left + delta_right) * 0.5 * cos(theta2)
         delta_y = (delta_left + delta_right) * 0.5 * sin(theta2)
 
-        self.res_X = self.res_X + delta_x
-        self.res_Y = self.res_Y + delta_y
+        self.x = self.x + delta_x
+        self.y = self.y + delta_y
 
         self.angle = self.angle + delta_theta
 
@@ -157,17 +182,6 @@ class Koala:
         self.left_pos = int(left_pos)
         self.right_pos = int(right_pos)
 
-    # def read_steps(self, stop_flag, lock):
-    #     while True:
-    #         if stop_flag.is_set():
-    #             print("fasz")
-    #             return
-    #         lock.acquire()
-    #         self.step()
-    #         print("res_X: " + str(self.res_X) + "\nres_Y: " + str(self.res_Y))
-    #         lock.release()
-
     @property
     def poses(self):
-        poses = self.write('H')
-        return poses
+        return self.write('H')
