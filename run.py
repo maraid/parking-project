@@ -2,7 +2,7 @@ import serial
 import time
 import Koala
 import threading
-import matplot
+#import matplot
 
 ser = serial.Serial(
 		port='/dev/ttyUSB0',
@@ -14,25 +14,35 @@ ser = serial.Serial(
 )
 
 
+
 koala = Koala.Koala(ser)
-koala.set_speed(20, 20)
-while True:
-	koala.odo_step()
-	print("res_X: " + str(koala.x) + "\nres_Y: " + str(koala.y))
-	if koala.y > 1:
-		koala.stop()
-		break
+koala.this_is_mqtt_visual_topic_callback()
+koala.set_speed(0,0) 
+
+#time.sleep(1)
+print("valami")
+koala.reach_pos()
+
+
+
+#koala.set_speed(20, 20)
+#while True:
+#	koala.odo_step() 
+#	print("res_X: " + str(koala.x) + "\nres_Y: " + str(koala.y))
+#	if koala.y > 1:
+#		koala.stop()
+#		break
 
 
 
 
 # koala.follow_arch(0.3)
 
-try:
-	main()
-except KeyboardInterrupt:
-	koala.stop()
-	stop_flag.set()
+#try:
+#	main()
+#except KeyboardInterrupt:
+#	koala.stop()
+#	stop_flag.set()
 
 """
 input=1
