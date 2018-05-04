@@ -2,7 +2,15 @@ import serial
 import time
 import Koala
 import threading
+import signal
+import sys
 #import matplot
+
+def signal_handler(signal, frame):
+        #print('You pressed Ctrl+C!')
+        koala.set_speed(0,0) 
+        sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
 
 ser = serial.Serial(
 		port='/dev/ttyUSB0',
@@ -19,8 +27,6 @@ koala = Koala.Koala(ser)
 koala.this_is_mqtt_visual_topic_callback()
 koala.set_speed(0,0) 
 
-#time.sleep(1)
-print("valami")
 koala.reach_pos()
 
 

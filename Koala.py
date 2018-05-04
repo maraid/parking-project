@@ -26,7 +26,8 @@ class Koala:
 
         # ODOMETRY
         self.max_speed = 0.3  # m/s
-        self.max_speed_low = 0.1 #m/s
+        self.max_speed_low = 0.12 #m/s
+        self.speed_dependent_time_correction = 1 # (speed: 0.25m/s, radius: 0.5): 1.05; (speed: 0.12m/s, radius: 0.5): 1.068
         self.max_acceleration = 0.07  # m/s^2
 
         self.wheel_radius_left = 4.19 / 100  # m
@@ -49,6 +50,8 @@ class Koala:
 
         self.circle_radius = 0.0
         self.circle_arch_length = 0.0
+        self.circle_right = True
+        self.circle_forward = True
 
     def odo_reset(self, x, y, theta):
         self.write('G', 0, 0)
@@ -62,8 +65,24 @@ class Koala:
     def this_is_mqtt_visual_topic_callback(self):
         # mqtt get info from visual team topic
         #raise NotImplementedError()
-        self.circle_radius = 1.0
-        self.circle_arch_length = 3.14
+        radius = 0.5
+        length = -2.0 * abs(radius) * pi / 2.0
+        
+        if(radius > 0):
+            self.circle_right = True
+        else:
+            self.circle_right = False
+            
+        if(length > 0):
+            self.circle_forward = True
+        else:
+            self.circle_forward = False
+        
+        self.circle_radius = abs(radius)
+        self.circle_arch_length = abs(length)
+        
+        print("rad: " + str(self.circle_radius) + " length: " + str(self.circle_arch_length))
+        
         self.program_start = time.time()
         self.time_goal =   self.circle_arch_length / self.max_speed_low
         
@@ -71,7 +90,7 @@ class Koala:
         if(self.time_act == 0):
             self.p = 0
         else:
-            self.p = (self.time_goal - self.time_start) / (self.time_act + self.while_cycle_time)
+            self.p =  (self.time_act + self.while_cycle_time) / (self.time_goal - self.time_start)
 
     def write(self, *arg):
         def response():
@@ -108,8 +127,16 @@ class Koala:
         circle_circumference = self.circle_radius*2*pi
         max_rad = 2 * pi * (self.circle_arch_length / circle_circumference)
 
-        x = self.circle_radius * cos((max_rad * p) - ( pi / 2 )) 
-        y = self.circle_radius * sin((max_rad * p) - ( pi / 2 )) + 1 #see geogebra example
+        
+        
+        if(self.circle_right == True):
+            y = self.circle_radius * cos((max_rad * p) - ( pi / 2 )) 
+            x = self.circle_radius * sin((max_rad * p) - ( pi / 2 )) + self.circle_radius #see geogebra example
+        else:
+            y = self.circle_radius * cos((max_rad * (1.0-p)) - ( pi / 2 )) 
+            x = self.circle_radius * sin((max_rad * (1.0-p)) - ( pi / 2 )) - self.circle_radius #see geogebra example
+        
+        
         return x, y
 
     def get_small_radius(self, x, y):
@@ -171,29 +198,44 @@ class Koala:
         center_x = x[0]
         center_y = x[1]
         center_radius = (center_x ** 2 + center_y ** 2) ** 0.5
-        if self.circle_radius > 0:
+        
+        if (self.circle_right == True):
             left_radius = center_radius + (self.wheel_base/2.0) 
             right_radius = center_radius - (self.wheel_base/2.0) 
         else:
             left_radius = center_radius - (self.wheel_base/2.0) 
             right_radius = center_radius + (self.wheel_base/2.0) 
             
+        #print("cr: " + str(center_radius) + " lr: " + str(left_radius) + " rr: " + str(right_radius));
+            
         center_circumference = 2*center_radius*pi
         center_full_time = center_circumference / self.max_speed_low     
-        center_distance = center_circumference * (self.while_cycle_time / center_full_time)
+
         
         left_circumference = 2*left_radius*pi
-        left_full_time = left_circumference / self.max_speed_low     
-        left_distance = left_circumference * (self.while_cycle_time / left_full_time)
+        left_speed = (left_circumference / center_circumference) * self.max_speed_low
+        
+
         
         right_circumference = 2*right_radius*pi
-        right_full_time = right_circumference / self.max_speed_low     
-        right_distance = right_circumference * (self.while_cycle_time / right_full_time)
+        right_speed = (right_circumference / center_circumference ) * self.max_speed_low
+
         
-        left_wheel_speed = (left_distance/self.while_cycle_time)/0.0045
-        right_wheel_speed = (right_distance/self.while_cycle_time)/0.0045
+        #print("ccir: " + str(center_circumference) + " lcir: " + str(left_circumference) + " rcir: " + str(right_circumference));
         
-        self.set_speed(left_wheel_speed, right_wheel_speed) 
+        left_wheel_speed = left_speed/0.0045
+        right_wheel_speed = right_speed/0.0045
+        
+        #print("lws: " + str(left_wheel_speed) + " rws: " + str(right_wheel_speed))
+        #print(str(self.while_cycle_time))
+        #print(" ")
+        
+        if(self.circle_forward == True):
+            self.set_speed(left_wheel_speed, right_wheel_speed) 
+        else:
+            self.set_speed(-1.0*left_wheel_speed, -1.0*right_wheel_speed) 
+        
+        
 
     @staticmethod
     def clip(value, min=-100, max=100):
@@ -205,58 +247,24 @@ class Koala:
         
     def reach_pos(self):
         print(self.time_goal)
-        while(self.time_act < self.time_goal):
+        while(self.time_act < (self.time_goal*self.speed_dependent_time_correction)):
+            #print("p: " + str(self.p) + " time_act: " + str(self.time_act) + " wct: " + str(self.while_cycle_time))
             self.odo_step()
             self.while_cycle_prev_time = time.time()
             self.time_act = time.time() - self.program_start
             self.calc_p()
             next_x, next_y = self.arch(self.p)
             self.get_small_radius(next_x, next_y)
+            error = ((next_x-self.x)**2 + ((next_y-self.y)**2))**0.5
+            #print("self: " + str(self.x) + "," + str(self.y) + " dest: " + str(next_x) + "," + str(next_y) + "error: " + str(error))
+            print(str(next_x) + "," + str(next_y) + "," + str(self.x) + ", " + str(self.y))
             
             self.while_cycle_time = time.time() - self.while_cycle_prev_time
             
-#   def step(self):
-#       self.odo_step()
-#       self.p = self.p + 0.25
-#       next_x, next_y = self.arch(self.p)
-#       radius = self.get_small_radius(next_x, next_y)
-#       print("small radius: " + str(radius))
-#       omega = 10.0/radius
-#       
-#       left_speed = omega*(radius - (self.wheel_base/2.0))
-#       right_speed = omega*(radius + (self.wheel_base/2.0))
-#       
-#       self.set_speed(left_speed,right_speed)
-#       while abs(self.x - next_x) > 0.1 and abs(self.y - next_y) > 0.1:
-#           print("pos_error: (" + str(abs(self.x - next_x)) + "," + str(abs(self.y - next_y)) + ")")
-#           self.odo_step()
+        self.set_speed(0,0)
+        return
  
            
-    def step(self):
-        self.odo_step()
-        self.p = self.p + 0.2
-        print("p: " + str(self.p))
-        
-        radius = self.circle_radius
-        omega = 10.0/radius 
-        left_speed = omega*(radius - (self.wheel_base/2.0))
-        right_speed = omega*(radius + (self.wheel_base/2.0))
-        self.set_speed(left_speed,right_speed)
-        
-        #checkx, checky = self.arch(self.p) 
-        #error = ((self.x - checkx)  ** 2 + (self.y - checky) ** 2) ** 0.5
-        while((((self.x - self.arch(self.p)[0])  ** 2 + (self.y - self.arch(self.p)[1]) ** 2) ** 0.5) > 0.2) :
-            error = (((self.x - self.arch(self.p)[0])  ** 2 + (self.y - self.arch(self.p)[1]) ** 2) ** 0.5)
-            self.odo_step()
-            next_x, next_y = self.arch(self.p)
-            radius = self.get_small_radius(next_x, next_y)
-            print("small radius: " + str(radius) + "p: " + str(self.p) + " error: " + str(error))
-            omega = 10.0/radius
-            
-            left_speed = omega*(radius - (self.wheel_base/2.0))
-            right_speed = omega*(radius + (self.wheel_base/2.0))
-            
-            self.set_speed(left_speed,right_speed)
             
             
     def odo_step(self):
