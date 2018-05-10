@@ -3,10 +3,17 @@ import time
 from math import pi, cos, sin, tan, atan
 import numpy as np
 import time
+import MQTTClient
+import threading
 
 
 class Koala:
     def __init__(self, serial):
+		self.mqtt = MQTTClient.MQTTClient("HOST IP")
+		self.mqtt_thread = threading.Thread(target=self.mqtt.loop_forever)
+		self.mqtt_thread.start()
+		self.new_unhandled_message = threading.Event()
+		
         self.rspeed = 0
         self.lspeed = 0
         
@@ -52,7 +59,15 @@ class Koala:
         self.circle_arch_length = 0.0
         self.circle_right = True
         self.circle_forward = True
-
+	
+	def mqtt_command(self, client, userdata, msg):
+		self.new_unhandled_message.set()
+		print(msg.topic+" "+str(msg.payload))
+		paylaod = json.loads(msg.payload)
+		r = float(paylaod.get("R"))
+		l = float(payload.get("L"))
+		self.this_is_mqtt_visual_topic_callback(r, l)
+	
     def odo_reset(self, x, y, theta):
         self.write('G', 0, 0)
         self.left_pos = int(self.poses[1])
@@ -62,12 +77,13 @@ class Koala:
         self.y = y
         self.p = 0.0
 
-    def this_is_mqtt_visual_topic_callback(self):
+    def this_is_mqtt_visual_topic_callback(self, radius, length):
         # mqtt get info from visual team topic
         #raise NotImplementedError()
-        radius = -0.5
-        length = +2.0 * abs(radius) * pi / 2.0
-        
+        # radius = -0.5
+        # length = +2.0 * abs(radius) * pi / 2.0
+		self.new_unhandled_message.clear()
+		
         if(radius > 0):
             self.circle_right = True
         else:
@@ -258,6 +274,9 @@ class Koala:
     def reach_pos(self):
         print(self.time_goal)
         while(self.time_act < (self.time_goal*self.speed_dependent_time_correction)):
+			if self.new_unhandled_message.is_set():
+				break
+			
             #print("p: " + str(self.p) + " time_act: " + str(self.time_act) + " wct: " + str(self.while_cycle_time))
             self.odo_step()
             self.while_cycle_prev_time = time.time()
