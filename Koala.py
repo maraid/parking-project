@@ -65,8 +65,8 @@ class Koala:
     def this_is_mqtt_visual_topic_callback(self):
         # mqtt get info from visual team topic
         #raise NotImplementedError()
-        radius = 0.5
-        length = -2.0 * abs(radius) * pi / 2.0
+        radius = -0.5
+        length = +2.0 * abs(radius) * pi / 2.0
         
         if(radius > 0):
             self.circle_right = True
@@ -128,14 +128,24 @@ class Koala:
         max_rad = 2 * pi * (self.circle_arch_length / circle_circumference)
 
         
+        if(self.circle_forward == True):
         
-        if(self.circle_right == True):
-            y = self.circle_radius * cos((max_rad * p) - ( pi / 2 )) 
-            x = self.circle_radius * sin((max_rad * p) - ( pi / 2 )) + self.circle_radius #see geogebra example
+            if(self.circle_right == True):
+                y = self.circle_radius * cos((max_rad * p) - ( pi / 2 )) 
+                x = self.circle_radius * sin((max_rad * p) - ( pi / 2 )) + self.circle_radius #see geogebra example
+            else:
+                y = self.circle_radius * cos((max_rad * (1.0-p)) - ( pi / 2 )) 
+                x = self.circle_radius * sin((max_rad * (1.0-p)) - ( pi / 2 )) - self.circle_radius #see geogebra example
+        
         else:
-            y = self.circle_radius * cos((max_rad * (1.0-p)) - ( pi / 2 )) 
-            x = self.circle_radius * sin((max_rad * (1.0-p)) - ( pi / 2 )) - self.circle_radius #see geogebra example
         
+            if(self.circle_right == True):
+                y = -self.circle_radius * cos((max_rad * (1-p)) - ( pi / 2 )) 
+                x = -self.circle_radius * sin((max_rad * (1-p)) - ( pi / 2 )) + self.circle_radius #see geogebra example
+            else:
+                y = -self.circle_radius * cos((max_rad * p) - ( pi / 2 )) 
+                x = -self.circle_radius * sin((max_rad * p) - ( pi / 2 )) - self.circle_radius #see geogebra example
+
         
         return x, y
 
@@ -257,7 +267,7 @@ class Koala:
             self.get_small_radius(next_x, next_y)
             error = ((next_x-self.x)**2 + ((next_y-self.y)**2))**0.5
             #print("self: " + str(self.x) + "," + str(self.y) + " dest: " + str(next_x) + "," + str(next_y) + "error: " + str(error))
-            print(str(next_x) + "," + str(next_y) + "," + str(self.x) + ", " + str(self.y))
+            print(str(next_x) + "," + str(next_y) + "," + str(self.x) + ", " + str(self.y) + ", " + str(self.p) + ", " + str(self.while_cycle_time)+ ", " + str(self.lspeed)+ ", " + str(self.rspeed))
             
             self.while_cycle_time = time.time() - self.while_cycle_prev_time
             
