@@ -21,9 +21,9 @@ ser = serial.Serial(
 		xonxoff = True
 )
 
+mqtt_host = ""
 
-
-koala = Koala.Koala(ser)
+koala = Koala.Koala(ser, mqtt_host)
 koala.this_is_mqtt_visual_topic_callback()
 koala.set_speed(0,0) 
 
