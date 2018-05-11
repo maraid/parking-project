@@ -1,6 +1,6 @@
 import serial
 import time
-from math import pi, cos, sin, tan, atan
+from math import pi, cos, sin, tan, atan, acos
 import numpy as np
 import time
 import MQTTClient
@@ -23,7 +23,7 @@ class Koala:
         self.time_start = 0.0
         self.while_cycle_prev_time = 0.0
         self.program_start = time.time()
-        self.while_cycle_time = 0.0001 #ki kell merni hogy a valosagban mennyi es beirni
+        self.while_cycle_time = 0.2038 #ki kell merni hogy a valosagban mennyi es beirni
 
         self.serial = serial
 
@@ -78,11 +78,11 @@ class Koala:
         self.p = 0.0
 
     def this_is_mqtt_visual_topic_callback(self, radius, length):
-        # mqtt get info from visual team topic
-        #raise NotImplementedError()
-        # radius = -0.5
-        # length = +2.0 * abs(radius) * pi / 2.0
         self.new_unhandled_message.clear()
+        
+        if(abs(radius) == 0.0):
+            radius = 0.0000001
+        
         
         if(radius > 0):
             self.circle_right = True
@@ -219,11 +219,18 @@ class Koala:
         a = np.array([[x_a, y_a],
                       [x_b, y_b]])
         b = np.array([r_a, r_b])
-        x = np.linalg.solve(a, b)
+        eqx = np.linalg.solve(a, b)
 
-        center_x = x[0]
-        center_y = x[1]
+        center_x = eqx[0]
+        center_y = eqx[1]
         center_radius = (center_x ** 2 + center_y ** 2) ** 0.5
+        
+        self.odo_step()
+        
+        start_end_euclid_distance = ( (x-self.x)** 2 + (y-self.y)** 2) ** 0.5
+        
+        circle_angle = acos( (center_radius**2 + center_radius**2 - start_end_euclid_distance**2) / ( 2*center_radius*center_radius  ) )
+        
         
         if (self.circle_right == True):
             left_radius = center_radius + (self.wheel_base/2.0) 
@@ -235,16 +242,18 @@ class Koala:
         #print("cr: " + str(center_radius) + " lr: " + str(left_radius) + " rr: " + str(right_radius));
             
         center_circumference = 2*center_radius*pi
-        center_full_time = center_circumference / self.max_speed_low     
-
-        
         left_circumference = 2*left_radius*pi
-        left_speed = (left_circumference / center_circumference) * self.max_speed_low
-        
-
-        
         right_circumference = 2*right_radius*pi
-        right_speed = (right_circumference / center_circumference ) * self.max_speed_low
+        
+        center_arch_length = center_circumference * (circle_angle / (2*pi))
+        left_arch_length = left_circumference * (circle_angle / (2*pi))
+        right_arch_length = right_circumference * (circle_angle / (2*pi))
+        
+        
+        left_speed = left_arch_length / (self.while_cycle_time*3)
+        
+        right_speed = right_arch_length / (self.while_cycle_time*3)
+        
 
         
         #print("ccir: " + str(center_circumference) + " lcir: " + str(left_circumference) + " rcir: " + str(right_circumference));
@@ -252,8 +261,8 @@ class Koala:
         left_wheel_speed = left_speed/0.0045
         right_wheel_speed = right_speed/0.0045
         
-        #print("lws: " + str(left_wheel_speed) + " rws: " + str(right_wheel_speed))
-        #print(str(self.while_cycle_time))
+        #print("lws: " + str(left_wheel_speed) + " rws: " + str(right_wheel_speed) + "circle_angle: " + str(circle_angle) + " euclid: " + str(start_end_euclid_distance) + " cal: " + str(center_arch_length) + " lal: " + str(left_arch_length) + " ral: " + str(right_arch_length))
+        #print("wct: " + str(self.while_cycle_time))
         #print(" ")
         
         if(self.circle_forward == True):
@@ -273,10 +282,7 @@ class Koala:
         
     def reach_pos(self):
         print(self.time_goal)
-        while(self.time_act < (self.time_goal*self.speed_dependent_time_correction)):
-            if self.new_unhandled_message.is_set():
-                break
-            
+        while((self.time_act <= self.time_goal) and not self.new_unhandled_message.is_set() ):
             #print("p: " + str(self.p) + " time_act: " + str(self.time_act) + " wct: " + str(self.while_cycle_time))
             self.odo_step()
             self.while_cycle_prev_time = time.time()
@@ -284,7 +290,7 @@ class Koala:
             self.calc_p()
             next_x, next_y = self.arch(self.p)
             self.get_small_radius(next_x, next_y)
-            error = ((next_x-self.x)**2 + ((next_y-self.y)**2))**0.5
+            #error = ((next_x-self.x)**2 + ((next_y-self.y)**2))**0.5
             #print("self: " + str(self.x) + "," + str(self.y) + " dest: " + str(next_x) + "," + str(next_y) + "error: " + str(error))
             print(str(next_x) + "," + str(next_y) + "," + str(self.x) + ", " + str(self.y) + ", " + str(self.p) + ", " + str(self.while_cycle_time)+ ", " + str(self.lspeed)+ ", " + str(self.rspeed))
             
