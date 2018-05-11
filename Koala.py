@@ -5,14 +5,16 @@ import numpy as np
 import time
 import MQTTClient
 import threading
-
+import json 
 
 class Koala:
+
     def __init__(self, serial, host):
-        self.mqtt = MQTTClient.MQTTClient(host)
-        self.mqtt_thread = threading.Thread(target=self.mqtt.loop_forever)
-        self.mqtt_thread.start()
         self.new_unhandled_message = threading.Event()
+        self.mqtt = MQTTClient.MQTTClient(host, self.new_unhandled_message, self.this_is_mqtt_visual_topic_callback)
+        self.mqtt_thread = threading.Thread(target=self.mqtt.start)
+        self.mqtt_thread.start()
+        
         
         self.rspeed = 0
         self.lspeed = 0
@@ -26,6 +28,53 @@ class Koala:
         self.while_cycle_time = 0.2038 #ki kell merni hogy a valosagban mennyi es beirni
 
         self.serial = serial
+        print(serial)
+
+        self.set_speed(0, 0)
+
+        self.full_circle_ticks = 21198
+
+        # ODOMETRY
+        self.max_speed = 0.3  # m/s
+        self.max_speed_low = 0.12 #m/s
+        self.speed_dependent_time_correction = 1 # (speed: 0.25m/s, radius: 0.5): 1.05; (speed: 0.12m/s, radius: 0.5): 1.068
+        self.max_acceleration = 0.07  # m/s^2
+
+        self.wheel_radius_left = 4.19 / 100  # m
+        self.wheel_radius_right = 4.19 / 100  # m
+        self.wheel_base = 30.6 / 100  # m
+
+        self.tick_per_revolution = 5850.0
+
+        self.tick_size_left = 2 * pi * self.wheel_radius_left / self.tick_per_revolution  # position change/tick
+        self.tick_size_right = 2 * pi * self.wheel_radius_right / self.tick_per_revolution
+
+        self.speed_factor = 0.01 / ((self.tick_size_left + self.tick_size_right) / 2)  # change from m/s to tick/second
+
+        self.write('G', 0, 0)
+        self.left_pos = int(self.poses[1])
+        self.right_pos = int(self.poses[2])
+        self.angle = pi/2
+        self.x = 0
+        self.y = 0
+
+        self.circle_radius = 0.0
+        self.circle_arch_length = 0.0
+        self.circle_right = True
+        self.circle_forward = True
+        
+    def reset(self):
+        self.rspeed = 0
+        self.lspeed = 0
+        
+        self.p = 0.0
+        self.time_goal = 0.0
+        self.time_act = 0.0
+        self.time_start = 0.0
+        self.while_cycle_prev_time = 0.0
+        self.program_start = time.time()
+        self.while_cycle_time = 0.2038 #ki kell merni hogy a valosagban mennyi es beirni
+
 
         self.set_speed(0, 0)
 
@@ -63,8 +112,9 @@ class Koala:
     def mqtt_command(self, client, userdata, msg):
         self.new_unhandled_message.set()
         print(msg.topic+" "+str(msg.payload))
-        paylaod = json.loads(msg.payload)
-        r = float(paylaod.get("R"))
+        self.reset()
+        payload = json.loads(msg.payload)
+        r = float(payload.get("R"))
         l = float(payload.get("L"))
         self.this_is_mqtt_visual_topic_callback(r, l)
     
@@ -79,6 +129,7 @@ class Koala:
 
     def this_is_mqtt_visual_topic_callback(self, radius, length):
         self.new_unhandled_message.clear()
+        self.reset()
         
         if(abs(radius) == 0.0):
             radius = 0.0000001
@@ -102,6 +153,9 @@ class Koala:
         self.program_start = time.time()
         self.time_goal =   self.circle_arch_length / self.max_speed_low
         
+        rp_thread = threading.Thread(target=self.reach_pos, args=(self.new_unhandled_message,))
+        rp_thread.start()
+        
     def calc_p(self):
         if(self.time_act == 0):
             self.p = 0
@@ -116,6 +170,7 @@ class Koala:
                 out += self.serial.read(1)
             if out != '':
                 #print(out)
+                out = out.split("\r\n")[0]
                 return out.split(',')
 
         message = []
@@ -125,7 +180,9 @@ class Koala:
             else:
                 message.append(str(int(x)))
 
-        self.serial.write(",".join(message) + '\r')
+        print(message)
+        self.serial.write((",".join(message) + '\r').encode())
+
         return response()
 
     @property
@@ -280,9 +337,9 @@ class Koala:
             return min
         return value
         
-    def reach_pos(self):
+    def reach_pos(self, event):
         print(self.time_goal)
-        while((self.time_act <= self.time_goal) and not self.new_unhandled_message.is_set() ):
+        while((self.time_act <= self.time_goal) and not event.is_set() ):
             #print("p: " + str(self.p) + " time_act: " + str(self.time_act) + " wct: " + str(self.while_cycle_time))
             self.odo_step()
             self.while_cycle_prev_time = time.time()
@@ -329,4 +386,6 @@ class Koala:
 
     @property
     def poses(self):
-        return self.write('H')
+        return_val = self.write('H')
+        print(return_val)
+        return return_val
