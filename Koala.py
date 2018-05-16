@@ -15,6 +15,8 @@ class Koala:
         self.mqtt_thread = threading.Thread(target=self.mqtt.start)
         self.mqtt_thread.start()
         
+        self.rp_thread = None
+        
         
         self.rspeed = 0
         self.lspeed = 0
@@ -133,6 +135,10 @@ class Koala:
         
         if(abs(radius) == 0.0):
             radius = 0.0000001
+            
+            
+        if(abs(length) == 0.0):
+            length = 0.0000001
         
         
         if(radius > 0):
@@ -153,10 +159,16 @@ class Koala:
         self.program_start = time.time()
         self.time_goal =   self.circle_arch_length / self.max_speed_low
         
-        rp_thread = threading.Thread(target=self.reach_pos, args=(self.new_unhandled_message,))
-        rp_thread.start()
+        if(self.rp_thread is not None):
+            print("STOP THREAD")
+            #self.rp_thread._stop()
+        self.rp_thread = threading.Thread(target=self.reach_pos, args=(self.new_unhandled_message,))
+        self.rp_thread.start()
         
     def calc_p(self):
+        if(self.time_goal == 0):
+            self.time_goal = 0.000001
+        print("time_goal: " + str(self.time_goal) + " time_start: " + str(self.time_start))
         if(self.time_act == 0):
             self.p = 0
         else:
@@ -343,7 +355,7 @@ class Koala:
             #print("p: " + str(self.p) + " time_act: " + str(self.time_act) + " wct: " + str(self.while_cycle_time))
             self.odo_step()
             self.while_cycle_prev_time = time.time()
-            self.time_act = time.time() - self.program_start
+            self.time_act = time.time() - self.program_start 
             self.calc_p()
             next_x, next_y = self.arch(self.p)
             self.get_small_radius(next_x, next_y)
@@ -387,5 +399,10 @@ class Koala:
     @property
     def poses(self):
         return_val = self.write('H')
-        print(return_val)
+        if (return_val is None):
+            return_val = ['x', '0', '0']
+        if(len(return_val) < 3):
+            return_val = ['x', '0', '0']
+        print("ret_val length: " + str(len(return_val)))
+        print("return: " + str(return_val))
         return return_val
