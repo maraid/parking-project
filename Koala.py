@@ -374,10 +374,14 @@ class Koala:
             #print("sensor " + str(i) + str(sensor_data[i]) )
         sensor_avg = sensor_sum / 16.0
 
-        if (sensor_avg > 50):
-            self.obstacle = True
-            self.set_speed(0,0)
-        else:
+        
+        if (self.circle_forward):
+            if (sensor_avg > 50):
+                self.obstacle = True
+                self.set_speed(0,0)
+            else:
+                self.obstacle = False
+        else:    
             self.obstacle = False
 
     def reach_pos(self, event):
