@@ -12,12 +12,12 @@ class Koala:
     def __init__(self, serial, host):
         self.no_new_unhandled_message = threading.Event()
         self.no_new_unhandled_message.set()
-        self.mqtt = MQTTClient.MQTTClient(host, self.new_unhandled_message, self.this_is_mqtt_visual_topic_callback)
+        self.mqtt = MQTTClient.MQTTClient(host, self.no_new_unhandled_message, self.this_is_mqtt_visual_topic_callback)
         self.mqtt_thread = threading.Thread(target=self.mqtt.start)
         self.mqtt_thread.start()
-        self.rp_thread = threading.Thread(target=self.reach_pos, args=(self.new_unhandled_message,))
+        self.rp_thread = threading.Thread(target=self.reach_pos, args=(self.no_new_unhandled_message,))
 
-        self.rp_thread = None
+        #self.rp_thread = None
 
 
         self.rspeed = 0
