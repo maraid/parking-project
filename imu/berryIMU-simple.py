@@ -41,7 +41,7 @@ IMU.initIMU()       #Initialise the accelerometer, gyroscope and compass
 a = datetime.datetime.now()
 
 client = mqtt.Client()
-client.connect('192.168.1.127', 1883, 60)
+client.connect('192.168.1.186', 1883, 60)
 
 while True:
 	

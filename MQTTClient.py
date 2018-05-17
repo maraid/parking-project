@@ -17,7 +17,7 @@ class MQTTClient:
         self.client.on_message = self.on_message
         
     def on_connect(self, client, userdata, flags, rc):
-        print("Connected with result code "+str(rc))
+        print("Connected with result code " + str(rc))
         self.client.subscribe("KOALA/curvecontrol")
         self.client.publish("controller", '{ "cmd":"reg", "id":2, "topic":"KOALA" }')
     

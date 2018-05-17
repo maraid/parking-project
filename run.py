@@ -21,6 +21,6 @@ ser = serial.Serial(
         xonxoff = True
 )
 
-mqtt_host = "192.168.1.127"
+mqtt_host = "192.168.1.186"
 
 koala = KoalaController.KoalaController(mqtt_host, ser)

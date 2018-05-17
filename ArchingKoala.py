@@ -14,13 +14,13 @@ class ArchingKoala(Koala.Koala):
         Koala.Koala.__init__(self, serial)
         self.new_message_flag = new_message_flag
         self.stop_flag = stop_flag
-        self.reach_pos_thread = None
+        self.reach_pos_thread = threading.Thread(target=self.reach_pos)
 
         self.p = 0.0
         self.time_goal = 0.0
         self.delta_time = 0.0
         self.start_time = 0.0
-        self.while_cycle_prev_time = 0.0
+        self.while_cycle_prev_time = 0.2
         self.program_start = time.time()
         self.while_cycle_time = 0.0
 
@@ -39,7 +39,7 @@ class ArchingKoala(Koala.Koala):
         self.start_time = 0.0
         self.while_cycle_prev_time = 0.0
         self.program_start = time.time()
-        self.while_cycle_time = 0.0
+        self.while_cycle_time = 0.2
         self.obstacle = False
         self.set_speed(0, 0)
         self.circle_radius = 0.0
@@ -53,7 +53,7 @@ class ArchingKoala(Koala.Koala):
         self.set_parameters(radius, length)
         self.time_goal = self.circle_arch_length / self.MAX_SPEED_LOW
 
-        if self.reach_pos_thread.is_alive:
+        if self.reach_pos_thread.is_alive():
             raise(RuntimeError, "reach_pos_thread hasn't ended in time")
 
         self.reach_pos_thread = threading.Thread(target=self.reach_pos)
@@ -80,9 +80,9 @@ class ArchingKoala(Koala.Koala):
         self.circle_arch_length = abs(length)
         print("rad: " + str(self.circle_radius) + " length: " + str(self.circle_arch_length))
 
-    def reach_pos(self, new_message_flag, stop_flag):
+    def reach_pos(self):
         while (self.delta_time <= self.time_goal) and not self.obstacle:
-            if new_message_flag.is_set():
+            if self.new_message_flag.is_set():
                 break
             self.detect_obstacle()
             self.odometry.step()
@@ -93,9 +93,9 @@ class ArchingKoala(Koala.Koala):
             self.get_small_radius(next_x, next_y)
 
             self.while_cycle_time = time.time() - self.while_cycle_prev_time
-
+            print(str(next_x) + "," + str(next_y) + "," + str(self.odometry.x) + ", " + str(self.odometry.y) + ", " + str(self.p) + ", " + str(self.while_cycle_time))
         self.set_speed(0, 0)
-        stop_flag.set()
+        self.stop_flag.set()
         return
 
     def calc_p(self):
@@ -108,27 +108,32 @@ class ArchingKoala(Koala.Koala):
             self.p = (self.delta_time + self.while_cycle_time) / (self.time_goal - self.start_time)
 
     def arch(self, p):
-        # max speed 0.3 de mi csak mondjuk konstans 0.1-el megyunk -> kiszamolni hogy mennyi ideig tart elerni a celt
-        circle_circumference = self.circle_radius * 2 * pi
+        #max speed 0.3 de mi csak mondjuk konstans 0.1-el megyunk -> kiszamolni hogy mennyi ideig tart elerni a celt
+        circle_circumference = self.circle_radius*2*pi
         max_rad = 2 * pi * (self.circle_arch_length / circle_circumference)
-
+        
         if self.circle_forward:
             if self.circle_right:
-                y = self.circle_radius * cos((max_rad * p) - (pi / 2))
-                x = self.circle_radius * sin((max_rad * p) - (pi / 2)) + self.circle_radius  # see geogebra example
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = self.circle_radius + self.circle_radius * cos(pi - (p*max_rad))
+                y = self.circle_radius * sin(pi - (p*max_rad))
+                print("forward, right")
             else:
-                y = self.circle_radius * cos((max_rad * (1.0 - p)) - (pi / 2))
-                x = self.circle_radius * sin(
-                    (max_rad * (1.0 - p)) - (pi / 2)) - self.circle_radius  # see geogebra example
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = -1.0*self.circle_radius + self.circle_radius*cos(p*max_rad)
+                y = self.circle_radius*sin(p*max_rad)
+                print("forward, left")
         else:
             if self.circle_right:
-                y = -self.circle_radius * cos((max_rad * (1 - p)) - (pi / 2))
-                x = -self.circle_radius * sin(
-                    (max_rad * (1 - p)) - (pi / 2)) + self.circle_radius  # see geogebra example
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = self.circle_radius + self.circle_radius * cos(p*max_rad + pi)
+                y = self.circle_radius * sin(p*max_rad + pi)
+                print("backward, right")
             else:
-                y = -self.circle_radius * cos((max_rad * p) - (pi / 2))
-                x = -self.circle_radius * sin((max_rad * p) - (pi / 2)) - self.circle_radius  # see geogebra example
-
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = -1.0*self.circle_radius + self.circle_radius*cos(-1.0*p*max_rad)
+                y = self.circle_radius*sin(-1.0*p*max_rad)
+                print("backward, left")
         return x, y
 
     def get_small_radius(self, x, y):
@@ -164,8 +169,7 @@ class ArchingKoala(Koala.Koala):
 
         start_end_euclid_distance = ((x - self.odometry.x) ** 2 + (y - self.odometry.y) ** 2) ** 0.5
 
-        circle_angle = acos((center_radius ** 2 + center_radius ** 2 - start_end_euclid_distance ** 2) / (
-                2 * center_radius * center_radius))
+        circle_angle = acos((center_radius ** 2 + center_radius ** 2 - start_end_euclid_distance ** 2) / (2 * center_radius * center_radius))
 
         if self.circle_right:
             left_radius = center_radius + (self.WHEEL_BASE / 2.0)
@@ -194,14 +198,18 @@ class ArchingKoala(Koala.Koala):
     def detect_obstacle(self):
         sensor_data = self.write('N')
         print('sensor_data: ' + str(sensor_data))
-        sensor_sum = 0
-        for i in range(0, len(sensor_data)):
+        sensor_sum = 0;
+        for i in range (0,len(sensor_data)):
             if i > 0:
                 sensor_sum = sensor_sum + int(sensor_data[i])
+            #print("sensor " + str(i) + str(sensor_data[i]) )
         sensor_avg = sensor_sum / 16.0
-
-        if sensor_avg > 50:
-            self.obstacle = True
-            self.set_speed(0, 0)
-        else:
+        
+        if self.circle_forward:
+            if (sensor_avg > 50):
+                self.obstacle = True
+                self.set_speed(0, 0)
+            else:
+                self.obstacle = False
+        else:    
             self.obstacle = False
