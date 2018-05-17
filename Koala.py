@@ -28,6 +28,8 @@ class Koala:
         self.while_cycle_prev_time = 0.0
         self.program_start = time.time()
         self.while_cycle_time = 0.2038 #ki kell merni hogy a valosagban mennyi es beirni
+        
+        self.obstacle = False
 
         self.serial = serial
         print(serial)
@@ -81,6 +83,7 @@ class Koala:
         self.set_speed(0, 0)
 
         self.full_circle_ticks = 21198
+        self.obstacle = False
 
         # ODOMETRY
         self.max_speed = 0.3  # m/s
@@ -349,10 +352,27 @@ class Koala:
             return min
         return value
         
+    def obstacle_detect(self):
+        sensor_data = self.write('N')
+        print('sensor_data: ' + str(sensor_data))
+        sensor_sum = 0;
+        for i in range (0,len(sensor_data)):
+            if i > 0:
+                sensor_sum = sensor_sum + int(sensor_data[i])
+            #print("sensor " + str(i) + str(sensor_data[i]) )
+        sensor_avg = sensor_sum / 16.0
+        
+        if (sensor_avg > 50):
+            self.obstacle = True
+            self.set_speed(0,0)
+        else:
+            self.obstacle = False
+        
     def reach_pos(self, event):
         print(self.time_goal)
-        while((self.time_act <= self.time_goal) and not event.is_set() ):
+        while((self.time_act <= self.time_goal) and not event.is_set() and not self.obstacle ):
             #print("p: " + str(self.p) + " time_act: " + str(self.time_act) + " wct: " + str(self.while_cycle_time))
+            self.obstacle_detect()
             self.odo_step()
             self.while_cycle_prev_time = time.time()
             self.time_act = time.time() - self.program_start 
