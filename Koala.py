@@ -218,26 +218,35 @@ class Koala:
         circle_circumference = self.circle_radius*2*pi
         max_rad = 2 * pi * (self.circle_arch_length / circle_circumference)
 
-
+        
         if(self.circle_forward == True):
-
+        
             if(self.circle_right == True):
-                y = self.circle_radius * cos((max_rad * p) - ( pi / 2 ))
-                x = self.circle_radius * sin((max_rad * p) - ( pi / 2 )) + self.circle_radius #see geogebra example
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = self.circle_radius + self.circle_radius * cos(pi - (p*max_rad))
+                y = self.circle_radius * sin(pi - (p*max_rad))
+                print("forward, right")
             else:
-                y = self.circle_radius * cos((max_rad * (1.0-p)) - ( pi / 2 ))
-                x = self.circle_radius * sin((max_rad * (1.0-p)) - ( pi / 2 )) - self.circle_radius #see geogebra example
-
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = -1.0*self.circle_radius + self.circle_radius*cos(p*max_rad)
+                y = self.circle_radius*sin(p*max_rad)
+                print("forward, left")
+                
         else:
-
+        
             if(self.circle_right == True):
-                y = -self.circle_radius * cos((max_rad * (1-p)) - ( pi / 2 ))
-                x = -self.circle_radius * sin((max_rad * (1-p)) - ( pi / 2 )) + self.circle_radius #see geogebra example
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = self.circle_radius + self.circle_radius * cos(p*max_rad + pi)
+                y = self.circle_radius * sin(p*max_rad + pi)
+                print("backward, right")
             else:
-                y = -self.circle_radius * cos((max_rad * p) - ( pi / 2 ))
-                x = -self.circle_radius * sin((max_rad * p) - ( pi / 2 )) - self.circle_radius #see geogebra example
+                #ha hozzanyulsz letorom a kezed, ennek mukodnie kell!!!!!!!444!!!!negy
+                x = -1.0*self.circle_radius + self.circle_radius*cos(-1.0*p*max_rad)
+                y = self.circle_radius*sin(-1.0*p*max_rad)
+                print("backward, left")
+                
 
-
+        
         return x, y
 
     def get_small_radius(self, x, y):

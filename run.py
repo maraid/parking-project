@@ -21,7 +21,7 @@ ser = serial.Serial(
 		xonxoff = True
 )
 
-mqtt_host = "192.168.1.127"
+mqtt_host = "192.168.1.186"
 
 koala = Koala.Koala(ser, mqtt_host)
 #koala.this_is_mqtt_visual_topic_callback()
