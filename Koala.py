@@ -15,9 +15,9 @@ class Koala:
         self.mqtt = MQTTClient.MQTTClient(host, self.no_new_unhandled_message, self.this_is_mqtt_visual_topic_callback)
         self.mqtt_thread = threading.Thread(target=self.mqtt.start)
         self.mqtt_thread.start()
-        self.rp_thread = threading.Thread(target=self.reach_pos, args=(self.no_new_unhandled_message,))
 
-        #self.rp_thread = None
+
+        self.rp_thread = None
 
 
         self.rspeed = 0
@@ -168,7 +168,7 @@ class Koala:
         if(self.rp_thread is not None):
             print("STOP THREAD")
             #self.rp_thread._stop()
-
+        self.rp_thread = threading.Thread(target=self.reach_pos, args=(self.no_new_unhandled_message,))
         self.rp_thread.start()
 
     def calc_p(self):
